@@ -1,6 +1,10 @@
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const validateNpmPackageName = require("validate-npm-package-name");
+
+const packageJson = require(path.join(process.cwd(), "./package.json"));
 
 module.exports = {
   meta: {
@@ -73,6 +77,7 @@ function printSortedImports(importItems, sourceCode) {
   const sideEffectImports = [];
   const packageImports = [];
   const privatePackageImports = [];
+  const internalImports = [];
   const relativeImports = [];
   const restImports = [];
 
@@ -83,6 +88,8 @@ function printSortedImports(importItems, sourceCode) {
       packageImports.push(item);
     } else if (item.group === "privatePackage") {
       privatePackageImports.push(item);
+    } else if (item.group === "internal") {
+      internalImports.push(item);
     } else if (item.group === "relative") {
       relativeImports.push(item);
     } else {
@@ -94,6 +101,7 @@ function printSortedImports(importItems, sourceCode) {
     sideEffectImports,
     sortImportItems(packageImports),
     sortImportItems(privatePackageImports),
+    sortImportItems(internalImports),
     sortImportItems(restImports),
     sortImportItems(relativeImports),
   ];
@@ -777,6 +785,19 @@ function compare(a, b) {
   return collator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
 }
 
+// Return child directories of `moduleRoots` defined in package.json
+function getInternalDirectories() {
+  const isDirectory = source => fs.lstatSync(source).isDirectory();
+
+  const getDirectories = source =>
+    fs.readdirSync(source).filter(name => isDirectory(path.join(source, name)));
+
+  return (packageJson.moduleRoots || []).reduce(
+    (acc, dir) => acc.concat(getDirectories(dir)),
+    []
+  );
+}
+
 // Full import statement.
 function isImport(node) {
   return node.type === "ImportDeclaration";
@@ -822,6 +843,15 @@ const PRIVATE_PACKAGE_REGEX = /^@margobank\/components.+/;
 // import { Row } from "@margobank/components/layout";
 function isPrivatePackageImport(source) {
   return PRIVATE_PACKAGE_REGEX.test(source);
+}
+
+const internalDirectories = getInternalDirectories();
+const INTERNAL_REGEX = new RegExp(`^(${internalDirectories.join("|")})(/.*)?$`);
+
+// import { login } from 'app/auth/actions';
+// import { useDispatch, useSelector } from 'common/store';
+function isInternalImport(source) {
+  return internalDirectories.length > 0 && INTERNAL_REGEX.test(source);
 }
 
 // import a from "."
@@ -877,6 +907,8 @@ function getGroupAndSource(importNode, sourceCode) {
     ? "sideEffect"
     : isPrivatePackageImport(source)
     ? "privatePackage"
+    : isInternalImport(source)
+    ? "internal"
     : isPackageImport(source)
     ? "package"
     : isRelativeImport(source)
