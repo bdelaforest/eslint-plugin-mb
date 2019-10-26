@@ -72,6 +72,7 @@ function maybeReportSorting(imports, context) {
 function printSortedImports(importItems, sourceCode) {
   const sideEffectImports = [];
   const packageImports = [];
+  const privatePackageImports = [];
   const relativeImports = [];
   const restImports = [];
 
@@ -80,6 +81,8 @@ function printSortedImports(importItems, sourceCode) {
       sideEffectImports.push(item);
     } else if (item.group === "package") {
       packageImports.push(item);
+    } else if (item.group === "privatePackage") {
+      privatePackageImports.push(item);
     } else if (item.group === "relative") {
       relativeImports.push(item);
     } else {
@@ -90,6 +93,7 @@ function printSortedImports(importItems, sourceCode) {
   const sortedItems = [
     sideEffectImports,
     sortImportItems(packageImports),
+    sortImportItems(privatePackageImports),
     sortImportItems(restImports),
     sortImportItems(relativeImports),
   ];
@@ -812,6 +816,14 @@ function isPackageImport(source) {
   );
 }
 
+const PRIVATE_PACKAGE_REGEX = /^@margobank\/components.+/;
+
+// import { PrimaryButton } from "@margobank/components/button";
+// import { Row } from "@margobank/components/layout";
+function isPrivatePackageImport(source) {
+  return PRIVATE_PACKAGE_REGEX.test(source);
+}
+
 // import a from "."
 // import a from "./x"
 // import a from ".."
@@ -863,6 +875,8 @@ function getGroupAndSource(importNode, sourceCode) {
       : [rawSource, ""];
   const group = isSideEffectImport(importNode, sourceCode)
     ? "sideEffect"
+    : isPrivatePackageImport(source)
+    ? "privatePackage"
     : isPackageImport(source)
     ? "package"
     : isRelativeImport(source)
