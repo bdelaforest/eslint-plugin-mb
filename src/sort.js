@@ -782,13 +782,10 @@ function sortSpecifierItems(items) {
   );
 }
 
-const collator = new Intl.Collator("en", {
-  sensitivity: "base",
-  numeric: true,
-});
-
+// We don't use Intl.Collator here to preserve the natural order of special chars.
+// In particular, we wan't '_' to be after '.'.
 function compare(a, b) {
-  return collator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 // Return child directories of `moduleRoots` defined in package.json
@@ -930,17 +927,12 @@ function getGroupAndSource(importNode, sourceCode) {
             // automatically sorted in a logical manner for us: Imports from files
             // further up come first, with deeper imports last. There’s one
             // exception, though: When the `from` part ends with one or two dots:
-            // "." and "..". Those are supposed to sort just like "./", "../". So
-            // add in the slash for them. (No special handling is done for cases
-            // like "./a/.." because nobody writes that anyway.)
-            source === "." || source === ".."
-            ? `${source}/`
+            // "." and ".." (or "./" and "../"). Those are supposed to be sorted
+            // after "./foo" and "../foo", so we add a "~" to ensure that.
+            // ("~" comes after "z")
+            source.endsWith(".") || source.endsWith("./")
+            ? `${source}~`
             : source
-          : group === "rest"
-          ? // This makes ASCII letters and digits sort first. When using
-            // `Intl.Collator`, `\t` followed by a letter sorts first (while `\0`
-            // followed by a letter comes a lot later!).
-            source.replace(/^[a-z\d]/i, "\t$&")
           : source,
       originalSource: source,
       importKind: getImportKind(importNode),
