@@ -769,11 +769,11 @@ function sortSpecifierItems(items) {
   return items.slice().sort(
     (itemA, itemB) =>
       // Put Flow type imports before regular ones.
-      compare(getImportKind(itemA.node), getImportKind(itemB.node)) ||
+      compare(getImportKind(itemA.node), getImportKind(itemB.node), true) ||
       // Then compare by name.
-      compare(itemA.node.imported.name, itemB.node.imported.name) ||
+      compare(itemA.node.imported.name, itemB.node.imported.name, true) ||
       // Then compare by the `as` name.
-      compare(itemA.node.local.name, itemB.node.local.name) ||
+      compare(itemA.node.local.name, itemB.node.local.name, true) ||
       // Keep the original order if the names are the same. It's not worth
       // trying to compare anything else, `import {a, a} from "mod"` is a syntax
       // error anyway (but babel-eslint kind of supports it).
@@ -784,8 +784,10 @@ function sortSpecifierItems(items) {
 
 // We don't use Intl.Collator here to preserve the natural order of special chars.
 // In particular, we wan't '_' to be after '.'.
-function compare(a, b) {
-  return a < b ? -1 : a > b ? 1 : 0;
+function compare(a, b, caseSensitive = false) {
+  const aToCompare = caseSensitive ? a : a.toLowerCase();
+  const bToCompare = caseSensitive ? b : b.toLowerCase();
+  return aToCompare < bToCompare ? -1 : aToCompare > bToCompare ? 1 : 0;
 }
 
 // Return child directories of `moduleRoots` defined in package.json
