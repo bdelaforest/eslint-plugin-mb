@@ -122,6 +122,16 @@ const baseTests = expect => ({
           |import b from "b";    
           |import c from "c";  /* comment */  
     `,
+
+    // Private packages are grouped together
+    input`
+          |import a from "a"
+          |
+          |import { Field } from "@margobank/components/form";
+          |import { Row } from "@margobank/components/layout";
+          |
+          |import b from "./b";
+    `,
   ],
 
   invalid: [
@@ -319,23 +329,23 @@ const baseTests = expect => ({
         expect(actual).toMatchInlineSnapshot(`
           |import {
           |  A,
-          |  a,
-          |  ab,
           |  B,
-          |  b,
           |  B2,
           |  BA,
-          |  Ba,
-          |  bA,
-          |  ba,
           |  BB,
+          |  Ba,
           |  Bb,
+          |  a,
+          |  ab,
+          |  b,
+          |  bA,
           |  bB,
+          |  ba,
           |  bb,
           |  img1,
-          |  img2,
           |  img10,
           |  img10_black,
+          |  img2,
           |  x as C,
           |  x as d,
           |} from "specifiers-human-sort"
@@ -902,59 +912,59 @@ const baseTests = expect => ({
       `,
       output: actual => {
         expect(actual).toMatchInlineSnapshot(`
+          |import {} from "react";
+          |import {} from "1";
           |import {} from "@storybook/react";
           |import {} from "@storybook/react/something";
-          |import {} from "1";
           |import {} from "async";
           |import {} from "fs";
           |import {} from "fs/something";
           |import {} from "lodash/fp";
-          |import {} from "react";
           |
           |import {} from "";
+          |import {} from "#/test"
+          |import {} from "...";
+          |import {} from ".../";
+          |import {} from ".a";
+          |import {} from "/";
+          |import {} from "/a";
+          |import {} from "/a/b";
           |import {} from "1*";
+          |import {} from "@/components/Alert"
+          |import {} from "@/components/error.vue"
           |import {} from "a*";
           |import {} from "Fs";
           |import {} from "http://example.com/script.js";
           |import {} from "https://example.com/script.js";
-          |import {} from "...";
-          |import {} from ".../";
-          |import {} from ".a";
-          |import {} from "@/components/Alert"
-          |import {} from "@/components/error.vue"
-          |import {} from "/";
-          |import {} from "/a";
-          |import {} from "/a/b";
-          |import {} from "#/test"
           |import {} from "~/test"
           |
-          |import {} from "..";
-          |import {} from "../";
-          |import {} from "../..";
-          |import {} from "../../";
           |import {} from "../../a";
+          |import {} from "../../";
+          |import {} from "../..";
           |import {} from "../a";
-          |import {} from "../a/..";
           |import {} from "../a/...";
-          |import {} from "../a/../";
           |import {} from "../a/../b";
-          |import {} from ".";
-          |import {} from "loader!.";
-          |import {} from "./";
+          |import {} from "../a/../";
+          |import {} from "../a/..";
+          |import {} from "../";
+          |import {} from "..";
           |import {} from ".//";
           |import {} from "./A";
           |import {} from "./a";
-          |import {} from "./ä"; // “a” followed by “̈̈” (COMBINING DIAERESIS).
-          |import {} from "./ä";
           |import {} from "./a/-";
           |import {} from "./a/.";
           |import {} from "./a/0";
+          |import {} from "./ä"; // “a” followed by “̈̈” (COMBINING DIAERESIS).
           |import {} from "./B"; // B1
-          |import {} from "./B"; // B2
           |import {} from "./b";
+          |import {} from "./B"; // B2
           |import img1 from "./img1";
-          |import img2 from "./img2";
           |import img10 from "./img10";
+          |import img2 from "./img2";
+          |import {} from "./";
+          |import {} from "./ä";
+          |import {} from ".";
+          |import {} from "loader!.";
         `);
       },
       errors: 1,
@@ -1364,7 +1374,7 @@ const baseTests = expect => ({
       `,
       output: actual => {
         expect(actual).toMatchInlineSnapshot(`
-          |import { buttonPrimary, linkButton, Select, spinnerOverlay } from 'src/components/common'
+          |import { Select, buttonPrimary, linkButton, spinnerOverlay } from 'src/components/common'
           |import DataTable from 'src/components/DataTable'
           |import ExportDataModal from 'src/components/ExportDataModal'
           |import FloatingActionButton from 'src/components/FloatingActionButton'
@@ -1459,6 +1469,31 @@ const baseTests = expect => ({
       },
       errors: 1,
     },
+
+    // Group private packages together.
+    {
+      code: input`
+          |import { Row } from "@margobank/components/layout";
+          |import c from "./c";
+          |import x2 from "b"
+          |import { Field } from "@margobank/components/form";
+          |import a from "a"
+          |import x1 from "a";
+      `,
+      output: actual => {
+        expect(actual).toMatchInlineSnapshot(`
+          |import a from "a"
+          |import x1 from "a";
+          |import x2 from "b"
+          |
+          |import { Field } from "@margobank/components/form";
+          |import { Row } from "@margobank/components/layout";
+          |
+          |import c from "./c";
+        `);
+      },
+      errors: 1,
+    },
   ],
 });
 
@@ -1517,11 +1552,11 @@ const flowTests = {
           |
           |import react from "react"
           |
+          |import type C from "/B";
+          |import type E from "@/B";
           |import typeof A from "A";
           |import type {X} from "X";
           |import type {Z} from "Z";
-          |import type E from "@/B";
-          |import type C from "/B";
           |
           |import type B from "./B";
           |import typeof D from "./D";
@@ -1715,9 +1750,9 @@ const typescriptTests = {
       `,
       output: actual => {
         expect(actual).toMatchInlineSnapshot(`
+          |import React from "react";
           |import classnames from "classnames";
           |import PropTypes from "prop-types";
-          |import React from "react";
           |
           |import { getUser } from "../../api";
           |import { formatNumber,truncate } from "../../utils";
@@ -1755,14 +1790,20 @@ const expect2 = (...args) => {
     ret.toBe(strip(string, { keepPipes: true }));
   return ret;
 };
-javascriptRuleTester.run("JavaScript", plugin.rules.sort, baseTests(expect));
-flowRuleTester.run("Flow", plugin.rules.sort, baseTests(expect2));
-typescriptRuleTester.run("TypeScript", plugin.rules.sort, baseTests(expect2));
-
-flowRuleTester.run("Flow-specific", plugin.rules.sort, flowTests);
-
+javascriptRuleTester.run(
+  "JavaScript",
+  plugin.rules["sort-imports"],
+  baseTests(expect)
+);
+flowRuleTester.run("Flow", plugin.rules["sort-imports"], baseTests(expect2));
+typescriptRuleTester.run(
+  "TypeScript",
+  plugin.rules["sort-imports"],
+  baseTests(expect2)
+);
+flowRuleTester.run("Flow-specific", plugin.rules["sort-imports"], flowTests);
 typescriptRuleTester.run(
   "TypeScript-specific",
-  plugin.rules.sort,
+  plugin.rules["sort-imports"],
   typescriptTests
 );
