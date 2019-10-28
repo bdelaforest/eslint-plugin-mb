@@ -740,9 +740,15 @@ function getTrailingSpaces(node, sourceCode) {
   return lines[0];
 }
 
+function ensureReactIsFirst(a, b) {
+  return a === "react" ? -1 : b === "react" ? 1 : 0;
+}
+
 function sortImportItems(items) {
   return items.slice().sort(
     (itemA, itemB) =>
+      // If source is 'react', put it first!
+      ensureReactIsFirst(itemA.source.source, itemB.source.source) ||
       // First compare the `from` part, excluding webpack loader syntax.
       compare(itemA.source.source, itemB.source.source) ||
       // The `.source` has been slightly tweaked. To stay fully deterministic,
