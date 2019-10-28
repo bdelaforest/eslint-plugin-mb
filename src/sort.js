@@ -1,6 +1,10 @@
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const validateNpmPackageName = require("validate-npm-package-name");
+
+const packageJson = require(path.join(process.cwd(), "./package.json"));
 
 module.exports = {
   meta: {
@@ -72,6 +76,8 @@ function maybeReportSorting(imports, context) {
 function printSortedImports(importItems, sourceCode) {
   const sideEffectImports = [];
   const packageImports = [];
+  const privatePackageImports = [];
+  const internalImports = [];
   const relativeImports = [];
   const restImports = [];
 
@@ -80,6 +86,10 @@ function printSortedImports(importItems, sourceCode) {
       sideEffectImports.push(item);
     } else if (item.group === "package") {
       packageImports.push(item);
+    } else if (item.group === "privatePackage") {
+      privatePackageImports.push(item);
+    } else if (item.group === "internal") {
+      internalImports.push(item);
     } else if (item.group === "relative") {
       relativeImports.push(item);
     } else {
@@ -90,6 +100,8 @@ function printSortedImports(importItems, sourceCode) {
   const sortedItems = [
     sideEffectImports,
     sortImportItems(packageImports),
+    sortImportItems(privatePackageImports),
+    sortImportItems(internalImports),
     sortImportItems(restImports),
     sortImportItems(relativeImports),
   ];
@@ -728,9 +740,15 @@ function getTrailingSpaces(node, sourceCode) {
   return lines[0];
 }
 
+function ensureReactIsFirst(a, b) {
+  return a === "react" ? -1 : b === "react" ? 1 : 0;
+}
+
 function sortImportItems(items) {
   return items.slice().sort(
     (itemA, itemB) =>
+      // If source is 'react', put it first!
+      ensureReactIsFirst(itemA.source.source, itemB.source.source) ||
       // First compare the `from` part, excluding webpack loader syntax.
       compare(itemA.source.source, itemB.source.source) ||
       // The `.source` has been slightly tweaked. To stay fully deterministic,
@@ -751,11 +769,11 @@ function sortSpecifierItems(items) {
   return items.slice().sort(
     (itemA, itemB) =>
       // Put Flow type imports before regular ones.
-      compare(getImportKind(itemA.node), getImportKind(itemB.node)) ||
+      compare(getImportKind(itemA.node), getImportKind(itemB.node), true) ||
       // Then compare by name.
-      compare(itemA.node.imported.name, itemB.node.imported.name) ||
+      compare(itemA.node.imported.name, itemB.node.imported.name, true) ||
       // Then compare by the `as` name.
-      compare(itemA.node.local.name, itemB.node.local.name) ||
+      compare(itemA.node.local.name, itemB.node.local.name, true) ||
       // Keep the original order if the names are the same. It's not worth
       // trying to compare anything else, `import {a, a} from "mod"` is a syntax
       // error anyway (but babel-eslint kind of supports it).
@@ -764,13 +782,25 @@ function sortSpecifierItems(items) {
   );
 }
 
-const collator = new Intl.Collator("en", {
-  sensitivity: "base",
-  numeric: true,
-});
+// We don't use Intl.Collator here to preserve the natural order of special chars.
+// In particular, we wan't '_' to be after '.'.
+function compare(a, b, caseSensitive = false) {
+  const aToCompare = caseSensitive ? a : a.toLowerCase();
+  const bToCompare = caseSensitive ? b : b.toLowerCase();
+  return aToCompare < bToCompare ? -1 : aToCompare > bToCompare ? 1 : 0;
+}
 
-function compare(a, b) {
-  return collator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
+// Return child directories of `moduleRoots` defined in package.json
+function getInternalDirectories() {
+  const isDirectory = source => fs.lstatSync(source).isDirectory();
+
+  const getDirectories = source =>
+    fs.readdirSync(source).filter(name => isDirectory(path.join(source, name)));
+
+  return (packageJson.moduleRoots || []).reduce(
+    (acc, dir) => acc.concat(getDirectories(dir)),
+    []
+  );
 }
 
 // Full import statement.
@@ -810,6 +840,23 @@ function isPackageImport(source) {
     errors.length === 0 &&
     warnings.filter(warning => !warning.includes("core module")).length === 0
   );
+}
+
+const PRIVATE_PACKAGE_REGEX = /^@margobank\/components.+/;
+
+// import { PrimaryButton } from "@margobank/components/button";
+// import { Row } from "@margobank/components/layout";
+function isPrivatePackageImport(source) {
+  return PRIVATE_PACKAGE_REGEX.test(source);
+}
+
+const internalDirectories = getInternalDirectories();
+const INTERNAL_REGEX = new RegExp(`^(${internalDirectories.join("|")})(/.*)?$`);
+
+// import { login } from 'app/auth/actions';
+// import { useDispatch, useSelector } from 'common/store';
+function isInternalImport(source) {
+  return internalDirectories.length > 0 && INTERNAL_REGEX.test(source);
 }
 
 // import a from "."
@@ -863,6 +910,10 @@ function getGroupAndSource(importNode, sourceCode) {
       : [rawSource, ""];
   const group = isSideEffectImport(importNode, sourceCode)
     ? "sideEffect"
+    : isPrivatePackageImport(source)
+    ? "privatePackage"
+    : isInternalImport(source)
+    ? "internal"
     : isPackageImport(source)
     ? "package"
     : isRelativeImport(source)
@@ -878,17 +929,12 @@ function getGroupAndSource(importNode, sourceCode) {
             // automatically sorted in a logical manner for us: Imports from files
             // further up come first, with deeper imports last. There’s one
             // exception, though: When the `from` part ends with one or two dots:
-            // "." and "..". Those are supposed to sort just like "./", "../". So
-            // add in the slash for them. (No special handling is done for cases
-            // like "./a/.." because nobody writes that anyway.)
-            source === "." || source === ".."
-            ? `${source}/`
+            // "." and ".." (or "./" and "../"). Those are supposed to be sorted
+            // after "./foo" and "../foo", so we add a "~" to ensure that.
+            // ("~" comes after "z")
+            source.endsWith(".") || source.endsWith("./")
+            ? `${source}~`
             : source
-          : group === "rest"
-          ? // This makes ASCII letters and digits sort first. When using
-            // `Intl.Collator`, `\t` followed by a letter sorts first (while `\0`
-            // followed by a letter comes a lot later!).
-            source.replace(/^[a-z\d]/i, "\t$&")
           : source,
       originalSource: source,
       importKind: getImportKind(importNode),

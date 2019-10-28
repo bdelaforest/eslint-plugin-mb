@@ -7,7 +7,7 @@ module.exports = {
   plugins: ["import", "jest", "prettier"],
   env: { es6: true, node: true },
   rules: Object.assign({}, baseRules({ import: true }), {
-    "import/order": ["error", { "newlines-between": "always" }],
+    "import/newline-after-import": "error",
     "no-console": "error",
     "prefer-template": "off",
     "prettier/prettier": "error",
