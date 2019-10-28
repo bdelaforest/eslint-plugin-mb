@@ -7,21 +7,27 @@ import "./global.css";
 import type A from "an-npm-package";
 import a from "an-npm-package";
 import fs from "fs";
+
+// Private packages.
+import { Row } from "@margobank/components/layout";
+
+// Absolute imports, full URLs and other imports.
 import b from "https://example.com/script.js";
 
 // Absolute imports and other imports.
-import Error from "@/components/error.vue"
+import Error from "@/components/error.vue";
 import c from "/";
 import d from "/home/user/foo";
 
 // Relative imports.
-import e from "../..";
 import f from "../../Utils"; // Case insensitive.
+import e from "../..";
 import type { B } from "../types";
 import typeof C from "../types";
-import g from ".";
 import h from "./constants";
 import i from "./styles";
+import j from "html-loader!./text.html";
+import g from ".";
 
 // Regardless of group, imported items are sorted like this:
 import {

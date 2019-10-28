@@ -115,9 +115,9 @@ import styles from "./styles.css";
 
 exports[`examples groups.none.js 1`] = `
 import styles from "./styles";
+import config from "/config";
 import App from "@/App";
 import { storiesOf } from "@storybook/react";
-import config from "/config";
 import react from "react";
 
 `;
@@ -256,14 +256,15 @@ import {/* comment at start */ f, /* f */g/* g */ } from "wherever3";
 `;
 
 exports[`examples readme-example.js 1`] = `
+import React from "react";
 import classnames from "classnames";
 import PropTypes from "prop-types";
-import React from "react";
 
 import { getUser } from "../../api";
 import type { User } from "../../types";
 import { formatNumber, truncate } from "../../utils";
 import Button from "../Button";
+
 import styles from "./styles.css";
 
 `;
@@ -272,25 +273,27 @@ exports[`examples readme-order.js 1`] = `
 // Side effect imports. (These are not sorted internally.)
 import "./setup";
 import "some-polyfill";
-import "./global.css";
+
+import fs from "fs";
 
 // Packages.
 import type A from "an-npm-package";
 import a from "an-npm-package";
-import fs from "fs";
+import j from "html-loader!./text.html";
+// Absolute imports, full URLs and other imports.
 import b from "https://example.com/script.js";
 
-// Absolute imports and other imports.
-import Error from "@/components/error.vue";
+// Private packages.
+import { Row } from "@margobank/components/layout";
+
 import c from "/";
 import d from "/home/user/foo";
 
-// Relative imports.
 import e from "../..";
+// Relative imports.
 import f from "../../Utils"; // Case insensitive.
 import type { B } from "../types";
 import typeof C from "../types";
-import g from ".";
 import h from "./constants";
 import i from "./styles";
 // Regardless of group, imported items are sorted like this:
@@ -298,28 +301,35 @@ import {
   // First, type imports.
   type x,
   typeof y,
+  L, // Case insensitive.
   // Numbers are sorted by their numeric value:
   img1,
-  img2,
   img10,
+  img2,
   // Then everything else, alphabetically:
   k,
-  L, // Case insensitive.
   m as anotherName, // Sorted by the original name “m”, not “anotherName”.
   m as tie, // But do use the \`as\` name in case of a tie.
   n,
 } from "./x";
+import g from ".";
+
+import "./global.css";
+
+// Absolute imports and other imports.
+import Error from "@/components/error.vue";
 
 `;
 
 exports[`examples typescript.ts 1`] = `
+import React from "react";
 import classnames from "classnames";
 import PropTypes from "prop-types";
-import React from "react";
 
 import { getUser } from "../../api";
 import { formatNumber,truncate } from "../../utils";
 import Button from "../Button";
+
 import styles from "./styles.css";
 
 // The above is the same as readme-example.js. The below function is here to
