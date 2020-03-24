@@ -1,17 +1,36 @@
 "use strict";
 
+const { readdirSync, statSync } = require("fs");
+// eslint-disable-next-line import/order
+const { join } = require("path");
+
+const SOURCE_DIR = "src";
+const internalPackages = readdirSync(SOURCE_DIR).filter(f =>
+  statSync(join(SOURCE_DIR, f)).isDirectory()
+);
+
 const defaultGroups = [
   // Side effect imports.
   ["^\\u0000"],
-  // Packages.
-  // Things that start with a letter (or digit or underscore), or `@` followed by a letter.
-  ["^@?\\w"],
-  // Absolute imports and other imports such as Vue-style `@/foo`.
-  // Anything that does not start with a dot.
-  ["^[^.]"],
-  // Relative imports.
-  // Anything that starts with a dot.
-  ["^\\."],
+  // Node.js builtins
+  [`^(${require("module").builtinModules.join("|")})(/|$)`],
+  // Packages. `react` related packages come first.
+  ["^react$", "^@?\\w"],
+  // Private packages.
+  ["^@margobank(/.*|$)"],
+  // Internal packages.
+  [`^(${internalPackages.join("|")})(/|$)`],
+  [
+    // Parent imports. Put `..` last.
+    "^\\.\\.(?!/?$)",
+    "^\\.\\./?$",
+    // Other relative imports. Put same-folder imports and `.` last.
+    "^\\./(?=.*/)(?!/?$)",
+    "^\\.(?!/?$)",
+    "^\\./?$",
+  ],
+  // Style imports.
+  ["^.+\\.s?css$"],
 ];
 
 module.exports = {
