@@ -3,17 +3,26 @@
 const shared = require("./shared");
 
 const defaultGroups = [
-  // Side effect imports.
-  ["^\\u0000"],
-  // Packages.
-  // Things that start with a letter (or digit or underscore), or `@` followed by a letter.
-  ["^@?\\w"],
-  // Absolute imports and other imports such as Vue-style `@/foo`.
-  // Anything not matched in another group.
-  ["^"],
+  // Side effect imports + Style imports
+  ["^\\u0000", "^.+\\.s?css$"],
+  // Node.js builtins.
+  [`^(${require("module").builtinModules.join("|")})(/.*|$)`],
+  // `react`, then other packages.
+  ["^react$", "^@?\\w"],
+  // Private packages.
+  [`^(${shared.getPrivateModules().join("|")})(/.*|$)`],
+  // Internal packages.
+  [`^(${shared.getInternalModules().join("|")})(/.*|$)`],
   // Relative imports.
-  // Anything that starts with a dot.
-  ["^\\."],
+  [
+    "^\\.\\./\\.\\.(?!/?$)",
+    "^\\.\\./\\.\\./?$",
+    "^\\.\\.(?!/?$)",
+    "^\\.\\./?$",
+    "^\\./(?=.*/)(?!/?$)",
+    "^\\.(?!/?$)",
+    "^\\./?$"
+  ]
 ];
 
 module.exports = {

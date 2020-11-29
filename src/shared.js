@@ -1,5 +1,26 @@
 "use strict";
 
+const { readdirSync } = require("fs");
+const path = require("path");
+
+function getDirectories(source) {
+  return readdirSync(source, { withFileTypes: true })
+    .filter(dir => dir.isDirectory())
+    .map(dir => dir.name);
+}
+
+function getInternalModules() {
+  const packageJson = require(path.join(process.cwd(), "./package.json"));
+  return (packageJson.moduleRoots || []).reduce(
+    (acc, dir) => acc.concat(getDirectories(dir)),
+    []
+  );
+}
+
+function getPrivateModules() {
+  return ["@margobank/components"];
+}
+
 // A “chunk” is a sequence of statements of a certain type with only comments
 // and whitespace between.
 function extractChunks(programNode, isPartOfChunk) {
@@ -858,6 +879,8 @@ module.exports = {
   extractChunks,
   flatMap,
   getImportExportItems,
+  getInternalModules,
+  getPrivateModules,
   isPunctuator,
   maybeReportSorting,
   printSortedItems,
